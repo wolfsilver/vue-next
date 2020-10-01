@@ -1,9 +1,57 @@
 import { VNodeChild } from '../vnode'
 import { isArray, isString, isObject } from '@vue/shared'
 
+/**
+ * v-for string
+ * @private
+ */
+export function renderList(
+  source: string,
+  renderItem: (value: string, index: number) => VNodeChild
+): VNodeChild[]
+
+/**
+ * v-for number
+ */
+export function renderList(
+  source: number,
+  renderItem: (value: number, index: number) => VNodeChild
+): VNodeChild[]
+
+/**
+ * v-for array
+ */
+export function renderList<T>(
+  source: T[],
+  renderItem: (value: T, index: number) => VNodeChild
+): VNodeChild[]
+
+/**
+ * v-for iterable
+ */
+export function renderList<T>(
+  source: Iterable<T>,
+  renderItem: (value: T, index: number) => VNodeChild
+): VNodeChild[]
+
+/**
+ * v-for object
+ */
+export function renderList<T>(
+  source: T,
+  renderItem: <K extends keyof T>(
+    value: T[K],
+    key: K,
+    index: number
+  ) => VNodeChild
+): VNodeChild[]
+
+/**
+ * Actual implementation
+ */
 export function renderList(
   source: any,
-  renderItem: (value: any, key: string | number, index?: number) => VNodeChild
+  renderItem: (...args: any[]) => VNodeChild
 ): VNodeChild[] {
   let ret: VNodeChild[]
   if (isArray(source) || isString(source)) {
@@ -27,6 +75,8 @@ export function renderList(
         ret[i] = renderItem(source[key], key, i)
       }
     }
+  } else {
+    ret = []
   }
-  return ret!
+  return ret
 }
