@@ -4,25 +4,26 @@ import { transformIf } from '../../src/transforms/vIf'
 import { transformElement } from '../../src/transforms/transformElement'
 import { transformSlotOutlet } from '../../src/transforms/transformSlotOutlet'
 import {
+  CommentNode,
+  ConditionalExpression,
+  ElementNode,
+  ElementTypes,
+  IfBranchNode,
+  IfConditionalExpression,
   IfNode,
   NodeTypes,
-  ElementNode,
-  TextNode,
-  CommentNode,
   SimpleExpressionNode,
-  ConditionalExpression,
-  IfConditionalExpression,
-  VNodeCall,
-  ElementTypes,
-  IfBranchNode
+  TextNode,
+  VNodeCall
 } from '../../src/ast'
 import { ErrorCodes } from '../../src/errors'
-import { CompilerOptions, generate } from '../../src'
+import { CompilerOptions, generate, TO_HANDLERS } from '../../src'
 import {
+  CREATE_COMMENT,
   FRAGMENT,
   MERGE_PROPS,
-  RENDER_SLOT,
-  CREATE_COMMENT
+  NORMALIZE_PROPS,
+  RENDER_SLOT
 } from '../../src/runtimeHelpers'
 import { createObjectMatcher } from '../testUtils'
 
@@ -247,7 +248,7 @@ describe('compiler: v-if', () => {
       ])
     })
 
-    test('error on v-else-if missing adjacent v-if', () => {
+    test('error on v-else-if missing adjacent v-if or v-else-if', () => {
       const onError = jest.fn()
 
       const { node: node1 } = parseWithIfTransform(`<div v-else-if="foo"/>`, {
@@ -281,6 +282,21 @@ describe('compiler: v-if', () => {
         {
           code: ErrorCodes.X_V_ELSE_NO_ADJACENT_IF,
           loc: node3.loc
+        }
+      ])
+
+      const {
+        node: { branches }
+      } = parseWithIfTransform(
+        `<div v-if="notOk"/><div v-else/><div v-else-if="ok"/>`,
+        { onError },
+        0
+      )
+
+      expect(onError.mock.calls[3]).toMatchObject([
+        {
+          code: ErrorCodes.X_V_ELSE_NO_ADJACENT_IF,
+          loc: branches[branches.length - 1].loc
         }
       ])
     })
@@ -556,8 +572,14 @@ describe('compiler: v-if', () => {
       const branch1 = codegenNode.consequent as VNodeCall
       expect(branch1.props).toMatchObject({
         type: NodeTypes.JS_CALL_EXPRESSION,
-        callee: MERGE_PROPS,
-        arguments: [createObjectMatcher({ key: `[0]` }), { content: `obj` }]
+        callee: NORMALIZE_PROPS,
+        arguments: [
+          {
+            type: NodeTypes.JS_CALL_EXPRESSION,
+            callee: MERGE_PROPS,
+            arguments: [createObjectMatcher({ key: `[0]` }), { content: `obj` }]
+          }
+        ]
       })
     })
 
@@ -606,6 +628,27 @@ describe('compiler: v-if', () => {
       expect(branch1.props).toMatchObject(createObjectMatcher({ key: `[0]` }))
     })
 
+    test('with spaces between branches', () => {
+      const {
+        node: { codegenNode }
+      } = parseWithIfTransform(
+        `<div v-if="ok"/> <div v-else-if="no"/> <div v-else/>`
+      )
+      expect(codegenNode.consequent).toMatchObject({
+        tag: `"div"`,
+        props: createObjectMatcher({ key: `[0]` })
+      })
+      const branch = codegenNode.alternate as ConditionalExpression
+      expect(branch.consequent).toMatchObject({
+        tag: `"div"`,
+        props: createObjectMatcher({ key: `[1]` })
+      })
+      expect(branch.alternate).toMatchObject({
+        tag: `"div"`,
+        props: createObjectMatcher({ key: `[2]` })
+      })
+    })
+
     test('with comments', () => {
       const { node } = parseWithIfTransform(`
           <template v-if="ok">
@@ -651,5 +694,25 @@ describe('compiler: v-if', () => {
       expect(b1.children[3].type).toBe(NodeTypes.ELEMENT)
       expect((b1.children[3] as ElementNode).tag).toBe(`p`)
     })
+  })
+
+  test('v-on with v-if', () => {
+    const {
+      node: { codegenNode }
+    } = parseWithIfTransform(
+      `<button v-on="{ click: clickEvent }" v-if="true">w/ v-if</button>`
+    )
+
+    expect((codegenNode.consequent as any).props.type).toBe(
+      NodeTypes.JS_CALL_EXPRESSION
+    )
+    expect((codegenNode.consequent as any).props.callee).toBe(MERGE_PROPS)
+    expect(
+      (codegenNode.consequent as any).props.arguments[0].properties[0].value
+        .content
+    ).toBe('0')
+    expect((codegenNode.consequent as any).props.arguments[1].callee).toBe(
+      TO_HANDLERS
+    )
   })
 })

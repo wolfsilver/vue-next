@@ -422,7 +422,7 @@ describe('reactivity/collections', () => {
       const proxy = reactive(raw)
       const thisArg = {}
       let count = 0
-      proxy.forEach(function(this: {}, value, _, set) {
+      proxy.forEach(function (this: {}, value, _, set) {
         ++count
         expect(this).toBe(thisArg)
         expect(value).toBe('value')
@@ -453,6 +453,12 @@ describe('reactivity/collections', () => {
       const [proxy, spy] = coverCollectionFn(new Set(), 'clear')
       proxy.clear()
       expect(spy).toBeCalledTimes(1)
+    })
+
+    it('should return proxy from Set.add call', () => {
+      const set = reactive(new Set())
+      const result = set.add('a')
+      expect(result).toBe(set)
     })
   })
 })

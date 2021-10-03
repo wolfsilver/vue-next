@@ -6,6 +6,7 @@ Hi! I'm really excited that you are interested in contributing to Vue.js. Before
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
 - [Pull Request Guidelines](#pull-request-guidelines)
 - [Development Setup](#development-setup)
+- [Scripts](#scripts)
 - [Project Structure](#project-structure)
 - [Contributing Tests](#contributing-tests)
 - [Financial Contribution](#financial-contribution)
@@ -39,7 +40,7 @@ Hi! I'm really excited that you are interested in contributing to Vue.js. Before
 
 ## Development Setup
 
-You will need [Node.js](http://nodejs.org) **version 10+**, and [Yarn 1.x](https://yarnpkg.com/en/docs/install).
+You will need [Node.js](https://nodejs.org) **version 10+**, and [Yarn 1.x](https://yarnpkg.com/en/docs/install).
 
 After cloning the repo, run:
 

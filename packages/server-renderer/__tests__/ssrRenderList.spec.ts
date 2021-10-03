@@ -1,3 +1,7 @@
+/**
+ * @jest-environment node
+ */
+
 import { ssrRenderList } from '../src/helpers/ssrRenderList'
 
 describe('ssr: renderList', () => {
@@ -24,6 +28,13 @@ describe('ssr: renderList', () => {
     expect(stack).toEqual(['node 0: 1', 'node 1: 2', 'node 2: 3'])
   })
 
+  it('should warn when given a non-integer N', () => {
+    ssrRenderList(3.1, () => {})
+    expect(
+      `The v-for range expect an integer value but got 3.1.`
+    ).toHaveBeenWarned()
+  })
+
   it('should render properties in an object', () => {
     ssrRenderList({ a: 1, b: 2, c: 3 }, (item, key, index) =>
       stack.push(`node ${index}/${key}: ${item}`)
@@ -32,7 +43,7 @@ describe('ssr: renderList', () => {
   })
 
   it('should render an item for entry in an iterable', () => {
-    const iterable = function*() {
+    const iterable = function* () {
       yield 1
       yield 2
       yield 3

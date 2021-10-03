@@ -25,7 +25,8 @@ import {
   isBindKey,
   createSequenceExpression,
   InterpolationNode,
-  isStaticExp
+  isStaticExp,
+  AttributeNode
 } from '@vue/compiler-dom'
 import {
   escapeHtml,
@@ -42,7 +43,8 @@ import {
   SSR_RENDER_DYNAMIC_ATTR,
   SSR_RENDER_ATTRS,
   SSR_INTERPOLATE,
-  SSR_GET_DYNAMIC_MODEL_PROPS
+  SSR_GET_DYNAMIC_MODEL_PROPS,
+  SSR_INCLUDE_BOOLEAN_ATTR
 } from '../runtimeHelpers'
 import { SSRTransformContext, processChildren } from '../ssrCodegenTransform'
 
@@ -159,6 +161,10 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
 
     for (let i = 0; i < node.props.length; i++) {
       const prop = node.props[i]
+      // ignore true-value/false-value on input
+      if (node.tag === 'input' && isTrueFalseValue(prop)) {
+        continue
+      }
       // special cases with children override
       if (prop.type === NodeTypes.DIRECTIVE) {
         if (prop.name === 'html' && prop.exp) {
@@ -198,6 +204,9 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
               if (isStaticExp(key)) {
                 let attrName = key.content
                 // static key attr
+                if (attrName === 'key' || attrName === 'ref') {
+                  continue
+                }
                 if (attrName === 'class') {
                   openTag.push(
                     ` class="`,
@@ -229,7 +238,10 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
                   if (isBooleanAttr(attrName)) {
                     openTag.push(
                       createConditionalExpression(
-                        value,
+                        createCallExpression(
+                          context.helper(SSR_INCLUDE_BOOLEAN_ATTR),
+                          [value]
+                        ),
                         createSimpleExpression(' ' + attrName, true),
                         createSimpleExpression('', true),
                         false /* no newline */
@@ -274,6 +286,9 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
         if (node.tag === 'textarea' && prop.name === 'value' && prop.value) {
           rawChildrenMap.set(node, escapeHtml(prop.value.content))
         } else if (!hasDynamicVBind) {
+          if (prop.name === 'key' || prop.name === 'ref') {
+            continue
+          }
           // static prop
           if (prop.name === 'class' && prop.value) {
             staticClassBinding = JSON.stringify(prop.value.content)
@@ -297,6 +312,19 @@ export const ssrTransformElement: NodeTransform = (node, context) => {
     }
 
     node.ssrCodegenNode = createTemplateLiteral(openTag)
+  }
+}
+
+function isTrueFalseValue(prop: DirectiveNode | AttributeNode) {
+  if (prop.type === NodeTypes.DIRECTIVE) {
+    return (
+      prop.name === 'bind' &&
+      prop.arg &&
+      isStaticExp(prop.arg) &&
+      (prop.arg.content === 'true-value' || prop.arg.content === 'false-value')
+    )
+  } else {
+    return prop.name === 'true-value' || prop.name === 'false-value'
   }
 }
 
@@ -324,9 +352,10 @@ function removeStaticBinding(
   tag: TemplateLiteral['elements'],
   binding: string
 ) {
-  const i = tag.findIndex(
-    e => typeof e === 'string' && e.startsWith(` ${binding}=`)
-  )
+  const regExp = new RegExp(`^ ${binding}=".+"$`)
+
+  const i = tag.findIndex(e => typeof e === 'string' && regExp.test(e))
+
   if (i > -1) {
     tag.splice(i, 1)
   }

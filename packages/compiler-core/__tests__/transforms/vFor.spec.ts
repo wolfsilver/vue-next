@@ -12,7 +12,8 @@ import {
   SimpleExpressionNode,
   ElementNode,
   InterpolationNode,
-  ForCodegenNode
+  ForCodegenNode,
+  ConstantTypes
 } from '../../src/ast'
 import { ErrorCodes } from '../../src/errors'
 import { CompilerOptions, generate } from '../../src'
@@ -637,6 +638,26 @@ describe('compiler: v-for', () => {
         })
       })
     })
+
+    test('template v-for key no prefixing on attribute key', () => {
+      const {
+        node: { codegenNode }
+      } = parseWithForTransform(
+        '<template v-for="item in items" key="key">test</template>',
+        { prefixIdentifiers: true }
+      )
+      const innerBlock = codegenNode.children.arguments[1].returns
+      expect(innerBlock).toMatchObject({
+        type: NodeTypes.VNODE_CALL,
+        tag: FRAGMENT,
+        props: createObjectMatcher({
+          key: {
+            type: NodeTypes.SIMPLE_EXPRESSION,
+            content: 'key'
+          }
+        })
+      })
+    })
   })
 
   describe('codegen', () => {
@@ -653,8 +674,8 @@ describe('compiler: v-for', () => {
         patchFlag: !disableTracking
           ? genFlagText(PatchFlags.STABLE_FRAGMENT)
           : keyed
-            ? genFlagText(PatchFlags.KEYED_FRAGMENT)
-            : genFlagText(PatchFlags.UNKEYED_FRAGMENT),
+          ? genFlagText(PatchFlags.KEYED_FRAGMENT)
+          : genFlagText(PatchFlags.UNKEYED_FRAGMENT),
         children: {
           type: NodeTypes.JS_CALL_EXPRESSION,
           callee: RENDER_LIST,
@@ -760,7 +781,7 @@ describe('compiler: v-for', () => {
           false /* disableTracking */
         )
       ).toMatchObject({
-        source: { content: `10`, isConstant: true },
+        source: { content: `10`, constType: ConstantTypes.CAN_STRINGIFY },
         params: [{ content: `item` }],
         innerVNodeCall: {
           tag: `"p"`,
@@ -772,7 +793,7 @@ describe('compiler: v-for', () => {
               type: NodeTypes.SIMPLE_EXPRESSION,
               content: 'item',
               isStatic: false,
-              isConstant: false
+              constType: ConstantTypes.NOT_CONSTANT
             }
           },
           patchFlag: genFlagText(PatchFlags.TEXT)

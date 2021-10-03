@@ -128,6 +128,21 @@ describe('reactivity/reactive/Array', () => {
     expect(fn).toHaveBeenCalledTimes(1)
   })
 
+  // #2427
+  test('track length on for ... in iteration', () => {
+    const array = reactive([1])
+    let length = ''
+    effect(() => {
+      length = ''
+      for (const key in array) {
+        length += key
+      }
+    })
+    expect(length).toBe('0')
+    array.push(1)
+    expect(length).toBe('01')
+  })
+
   describe('Array methods w/ refs', () => {
     let original: any[]
     beforeEach(() => {
@@ -154,6 +169,47 @@ describe('reactivity/reactive/Array', () => {
       const ref = original[1]
       expect(ref).toBe(toRaw(original)[1])
       expect(original.indexOf(ref)).toBe(1)
+    })
+  })
+
+  describe('Array subclasses', () => {
+    class SubArray<T> extends Array<T> {
+      lastPushed: undefined | T
+      lastSearched: undefined | T
+
+      push(item: T) {
+        this.lastPushed = item
+        return super.push(item)
+      }
+
+      indexOf(searchElement: T, fromIndex?: number | undefined): number {
+        this.lastSearched = searchElement
+        return super.indexOf(searchElement, fromIndex)
+      }
+    }
+
+    test('calls correct mutation method on Array subclass', () => {
+      const subArray = new SubArray(4, 5, 6)
+      const observed = reactive(subArray)
+
+      subArray.push(7)
+      expect(subArray.lastPushed).toBe(7)
+      observed.push(9)
+      expect(observed.lastPushed).toBe(9)
+    })
+
+    test('calls correct identity-sensitive method on Array subclass', () => {
+      const subArray = new SubArray(4, 5, 6)
+      const observed = reactive(subArray)
+      let index
+
+      index = subArray.indexOf(4)
+      expect(index).toBe(0)
+      expect(subArray.lastSearched).toBe(4)
+
+      index = observed.indexOf(6)
+      expect(index).toBe(2)
+      expect(observed.lastSearched).toBe(6)
     })
   })
 })

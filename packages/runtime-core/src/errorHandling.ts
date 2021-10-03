@@ -24,6 +24,7 @@ export const enum ErrorCodes {
 }
 
 export const ErrorTypeStrings: Record<number | string, string> = {
+  [LifecycleHooks.SERVER_PREFETCH]: 'serverPrefetch hook',
   [LifecycleHooks.BEFORE_CREATE]: 'beforeCreate hook',
   [LifecycleHooks.CREATED]: 'created hook',
   [LifecycleHooks.BEFORE_MOUNT]: 'beforeMount hook',
@@ -113,7 +114,9 @@ export function handleError(
       const errorCapturedHooks = cur.ec
       if (errorCapturedHooks) {
         for (let i = 0; i < errorCapturedHooks.length; i++) {
-          if (errorCapturedHooks[i](err, exposedInstance, errorInfo)) {
+          if (
+            errorCapturedHooks[i](err, exposedInstance, errorInfo) === false
+          ) {
             return
           }
         }

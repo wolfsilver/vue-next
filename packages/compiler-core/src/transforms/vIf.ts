@@ -20,19 +20,24 @@ import {
   IfNode,
   createVNodeCall,
   AttributeNode,
-  locStub
+  locStub,
+  CacheExpression,
+  ConstantTypes,
+  MemoExpression
 } from '../ast'
 import { createCompilerError, ErrorCodes } from '../errors'
 import { processExpression } from './transformExpression'
 import { validateBrowserExpression } from '../validateExpression'
+import { FRAGMENT, CREATE_COMMENT } from '../runtimeHelpers'
 import {
-  CREATE_BLOCK,
-  FRAGMENT,
-  CREATE_COMMENT,
-  OPEN_BLOCK
-} from '../runtimeHelpers'
-import { injectProp, findDir, findProp } from '../utils'
+  injectProp,
+  findDir,
+  findProp,
+  isBuiltInType,
+  makeBlock
+} from '../utils'
 import { PatchFlags, PatchFlagNames } from '@vue/shared'
+import { getMemoedVNodeCall } from '..'
 
 export const transformIf = createStructuralDirectiveTransform(
   /^(if|else|else-if)$/,
@@ -62,13 +67,7 @@ export const transformIf = createStructuralDirectiveTransform(
           ) as IfConditionalExpression
         } else {
           // attach this branch's codegen node to the v-if root.
-          let parentCondition = ifNode.codegenNode!
-          while (
-            parentCondition.alternate.type ===
-            NodeTypes.JS_CONDITIONAL_EXPRESSION
-          ) {
-            parentCondition = parentCondition.alternate
-          }
+          const parentCondition = getParentCondition(ifNode.codegenNode!)
           parentCondition.alternate = createCodegenNodeForBranch(
             branch,
             key + ifNode.branches.length - 1,
@@ -135,11 +134,40 @@ export function processIf(
         comments.unshift(sibling)
         continue
       }
+
+      if (
+        sibling &&
+        sibling.type === NodeTypes.TEXT &&
+        !sibling.content.trim().length
+      ) {
+        context.removeNode(sibling)
+        continue
+      }
+
       if (sibling && sibling.type === NodeTypes.IF) {
+        // Check if v-else was followed by v-else-if
+        if (
+          dir.name === 'else-if' &&
+          sibling.branches[sibling.branches.length - 1].condition === undefined
+        ) {
+          context.onError(
+            createCompilerError(ErrorCodes.X_V_ELSE_NO_ADJACENT_IF, node.loc)
+          )
+        }
+
         // move the node to the if node's branches
         context.removeNode()
         const branch = createIfBranch(node, dir)
-        if (__DEV__ && comments.length) {
+        if (
+          __DEV__ &&
+          comments.length &&
+          // #3619 ignore comments if the v-if is direct child of <transition>
+          !(
+            context.parent &&
+            context.parent.type === NodeTypes.ELEMENT &&
+            isBuiltInType(context.parent.tag, 'transition')
+          )
+        ) {
           branch.children = [...comments, ...branch.children]
         }
 
@@ -197,7 +225,7 @@ function createCodegenNodeForBranch(
   branch: IfBranchNode,
   keyIndex: number,
   context: TransformContext
-): IfConditionalExpression | BlockCodegenNode {
+): IfConditionalExpression | BlockCodegenNode | MemoExpression {
   if (branch.condition) {
     return createConditionalExpression(
       branch.condition,
@@ -218,11 +246,16 @@ function createChildrenCodegenNode(
   branch: IfBranchNode,
   keyIndex: number,
   context: TransformContext
-): BlockCodegenNode {
+): BlockCodegenNode | MemoExpression {
   const { helper } = context
   const keyProperty = createObjectProperty(
     `key`,
-    createSimpleExpression(`${keyIndex}`, false, locStub, true)
+    createSimpleExpression(
+      `${keyIndex}`,
+      false,
+      locStub,
+      ConstantTypes.CAN_HOIST
+    )
   )
   const { children } = branch
   const firstChild = children[0]
@@ -235,33 +268,44 @@ function createChildrenCodegenNode(
       injectProp(vnodeCall, keyProperty, context)
       return vnodeCall
     } else {
+      let patchFlag = PatchFlags.STABLE_FRAGMENT
+      let patchFlagText = PatchFlagNames[PatchFlags.STABLE_FRAGMENT]
+      // check if the fragment actually contains a single valid child with
+      // the rest being comments
+      if (
+        __DEV__ &&
+        children.filter(c => c.type !== NodeTypes.COMMENT).length === 1
+      ) {
+        patchFlag |= PatchFlags.DEV_ROOT_FRAGMENT
+        patchFlagText += `, ${PatchFlagNames[PatchFlags.DEV_ROOT_FRAGMENT]}`
+      }
+
       return createVNodeCall(
         context,
         helper(FRAGMENT),
         createObjectExpression([keyProperty]),
         children,
-        `${PatchFlags.STABLE_FRAGMENT} /* ${
-          PatchFlagNames[PatchFlags.STABLE_FRAGMENT]
-        } */`,
+        patchFlag + (__DEV__ ? ` /* ${patchFlagText} */` : ``),
         undefined,
         undefined,
         true,
         false,
+        false /* isComponent */,
         branch.loc
       )
     }
   } else {
-    const vnodeCall = (firstChild as ElementNode)
-      .codegenNode as BlockCodegenNode
+    const ret = (firstChild as ElementNode).codegenNode as
+      | BlockCodegenNode
+      | MemoExpression
+    const vnodeCall = getMemoedVNodeCall(ret)
     // Change createVNode to createBlock.
     if (vnodeCall.type === NodeTypes.VNODE_CALL) {
-      vnodeCall.isBlock = true
-      helper(OPEN_BLOCK)
-      helper(CREATE_BLOCK)
+      makeBlock(vnodeCall, context)
     }
     // inject branch key
     injectProp(vnodeCall, keyProperty, context)
-    return vnodeCall
+    return ret
   }
 }
 
@@ -285,11 +329,27 @@ function isSameKey(
     }
     if (
       exp.type !== NodeTypes.SIMPLE_EXPRESSION ||
-      (exp.isStatic !== (branchExp as SimpleExpressionNode).isStatic ||
-        exp.content !== (branchExp as SimpleExpressionNode).content)
+      exp.isStatic !== (branchExp as SimpleExpressionNode).isStatic ||
+      exp.content !== (branchExp as SimpleExpressionNode).content
     ) {
       return false
     }
   }
   return true
+}
+
+function getParentCondition(
+  node: IfConditionalExpression | CacheExpression
+): IfConditionalExpression {
+  while (true) {
+    if (node.type === NodeTypes.JS_CONDITIONAL_EXPRESSION) {
+      if (node.alternate.type === NodeTypes.JS_CONDITIONAL_EXPRESSION) {
+        node = node.alternate
+      } else {
+        return node
+      }
+    } else if (node.type === NodeTypes.JS_CACHE_EXPRESSION) {
+      node = node.value as IfConditionalExpression
+    }
+  }
 }

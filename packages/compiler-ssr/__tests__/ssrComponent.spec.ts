@@ -4,7 +4,7 @@ describe('ssr: components', () => {
   test('basic', () => {
     expect(compile(`<foo id="a" :prop="b" />`).code).toMatchInlineSnapshot(`
       "const { resolveComponent: _resolveComponent, mergeProps: _mergeProps } = require(\\"vue\\")
-      const { ssrRenderComponent: _ssrRenderComponent } = require(\\"@vue/server-renderer\\")
+      const { ssrRenderComponent: _ssrRenderComponent } = require(\\"vue/server-renderer\\")
 
       return function ssrRender(_ctx, _push, _parent, _attrs) {
         const _component_foo = _resolveComponent(\\"foo\\")
@@ -21,7 +21,7 @@ describe('ssr: components', () => {
     expect(compile(`<component is="foo" prop="b" />`).code)
       .toMatchInlineSnapshot(`
       "const { resolveDynamicComponent: _resolveDynamicComponent, mergeProps: _mergeProps, createVNode: _createVNode } = require(\\"vue\\")
-      const { ssrRenderVNode: _ssrRenderVNode } = require(\\"@vue/server-renderer\\")
+      const { ssrRenderVNode: _ssrRenderVNode } = require(\\"vue/server-renderer\\")
 
       return function ssrRender(_ctx, _push, _parent, _attrs) {
         _ssrRenderVNode(_push, _createVNode(_resolveDynamicComponent(\\"foo\\"), _mergeProps({ prop: \\"b\\" }, _attrs), null), _parent)
@@ -31,7 +31,7 @@ describe('ssr: components', () => {
     expect(compile(`<component :is="foo" prop="b" />`).code)
       .toMatchInlineSnapshot(`
       "const { resolveDynamicComponent: _resolveDynamicComponent, mergeProps: _mergeProps, createVNode: _createVNode } = require(\\"vue\\")
-      const { ssrRenderVNode: _ssrRenderVNode } = require(\\"@vue/server-renderer\\")
+      const { ssrRenderVNode: _ssrRenderVNode } = require(\\"vue/server-renderer\\")
 
       return function ssrRender(_ctx, _push, _parent, _attrs) {
         _ssrRenderVNode(_push, _createVNode(_resolveDynamicComponent(_ctx.foo), _mergeProps({ prop: \\"b\\" }, _attrs), null), _parent)
@@ -43,7 +43,7 @@ describe('ssr: components', () => {
     test('implicit default slot', () => {
       expect(compile(`<foo>hello<div/></foo>`).code).toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent, withCtx: _withCtx, createVNode: _createVNode, createTextVNode: _createTextVNode } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
@@ -59,7 +59,7 @@ describe('ssr: components', () => {
                 ]
               }
             }),
-            _: 1
+            _: 1 /* STABLE */
           }, _parent))
         }"
       `)
@@ -69,7 +69,7 @@ describe('ssr: components', () => {
       expect(compile(`<foo v-slot="{ msg }">{{ msg + outer }}</foo>`).code)
         .toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent, withCtx: _withCtx, toDisplayString: _toDisplayString, createTextVNode: _createTextVNode } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent, ssrInterpolate: _ssrInterpolate } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent, ssrInterpolate: _ssrInterpolate } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
@@ -84,7 +84,7 @@ describe('ssr: components', () => {
                 ]
               }
             }),
-            _: 1
+            _: 1 /* STABLE */
           }, _parent))
         }"
       `)
@@ -98,7 +98,7 @@ describe('ssr: components', () => {
       </foo>`).code
       ).toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent, withCtx: _withCtx, createTextVNode: _createTextVNode } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
@@ -122,7 +122,7 @@ describe('ssr: components', () => {
                 ]
               }
             }),
-            _: 1
+            _: 1 /* STABLE */
           }, _parent))
         }"
       `)
@@ -135,12 +135,12 @@ describe('ssr: components', () => {
       </foo>`).code
       ).toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent, withCtx: _withCtx, createTextVNode: _createTextVNode, createSlots: _createSlots } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
 
-          _push(_ssrRenderComponent(_component_foo, _attrs, _createSlots({ _: 2 }, [
+          _push(_ssrRenderComponent(_component_foo, _attrs, _createSlots({ _: 2 /* DYNAMIC */ }, [
             (_ctx.ok)
               ? {
                   name: \\"named\\",
@@ -167,12 +167,12 @@ describe('ssr: components', () => {
       </foo>`).code
       ).toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent, withCtx: _withCtx, toDisplayString: _toDisplayString, createTextVNode: _createTextVNode, renderList: _renderList, createSlots: _createSlots } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent, ssrInterpolate: _ssrInterpolate } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent, ssrInterpolate: _ssrInterpolate } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
 
-          _push(_ssrRenderComponent(_component_foo, _attrs, _createSlots({ _: 2 }, [
+          _push(_ssrRenderComponent(_component_foo, _attrs, _createSlots({ _: 2 /* DYNAMIC */ }, [
             _renderList(_ctx.names, (key) => {
               return {
                 name: key,
@@ -207,8 +207,8 @@ describe('ssr: components', () => {
         </template>
       </foo>`).code
       ).toMatchInlineSnapshot(`
-        "const { resolveComponent: _resolveComponent, withCtx: _withCtx, renderList: _renderList, Fragment: _Fragment, openBlock: _openBlock, createBlock: _createBlock, createVNode: _createVNode, createCommentVNode: _createCommentVNode } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent, ssrRenderList: _ssrRenderList } = require(\\"@vue/server-renderer\\")
+        "const { resolveComponent: _resolveComponent, withCtx: _withCtx, renderList: _renderList, Fragment: _Fragment, openBlock: _openBlock, createBlock: _createBlock, createCommentVNode: _createCommentVNode } = require(\\"vue\\")
+        const { ssrRenderComponent: _ssrRenderComponent, ssrRenderList: _ssrRenderList } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
@@ -260,7 +260,7 @@ describe('ssr: components', () => {
                 ]
               }
             }),
-            _: 1
+            _: 1 /* STABLE */
           }, _parent))
         }"
       `)
@@ -269,31 +269,112 @@ describe('ssr: components', () => {
     test('built-in fallthroughs', () => {
       expect(compile(`<transition><div/></transition>`).code)
         .toMatchInlineSnapshot(`
-        "
-        return function ssrRender(_ctx, _push, _parent, _attrs) {
-          _push(\`<div></div>\`)
-        }"
-      `)
+        "const { ssrRenderAttrs: _ssrRenderAttrs } = require(\\"vue/server-renderer\\")
 
-      expect(compile(`<transition-group><div/></transition-group>`).code)
-        .toMatchInlineSnapshot(`
-        "
         return function ssrRender(_ctx, _push, _parent, _attrs) {
-          _push(\`<!--[--><div></div><!--]-->\`)
+          _push(\`<div\${_ssrRenderAttrs(_attrs)}></div>\`)
         }"
       `)
 
       expect(compile(`<keep-alive><foo/></keep-alive>`).code)
         .toMatchInlineSnapshot(`
         "const { resolveComponent: _resolveComponent } = require(\\"vue\\")
-        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"@vue/server-renderer\\")
+        const { ssrRenderComponent: _ssrRenderComponent } = require(\\"vue/server-renderer\\")
 
         return function ssrRender(_ctx, _push, _parent, _attrs) {
           const _component_foo = _resolveComponent(\\"foo\\")
 
-          _push(_ssrRenderComponent(_component_foo, null, null, _parent))
+          _push(_ssrRenderComponent(_component_foo, _attrs, null, _parent))
         }"
       `)
+    })
+
+    // transition-group should flatten and concat its children fragments into
+    // a single one
+    describe('transition-group', () => {
+      test('basic', () => {
+        expect(
+          compile(
+            `<transition-group><div v-for="i in list"/></transition-group>`
+          ).code
+        ).toMatchInlineSnapshot(`
+          "const { ssrRenderList: _ssrRenderList } = require(\\"vue/server-renderer\\")
+
+          return function ssrRender(_ctx, _push, _parent, _attrs) {
+            _push(\`<!--[-->\`)
+            _ssrRenderList(_ctx.list, (i) => {
+              _push(\`<div></div>\`)
+            })
+            _push(\`<!--]-->\`)
+          }"
+        `)
+      })
+
+      test('with static tag', () => {
+        expect(
+          compile(
+            `<transition-group tag="ul"><div v-for="i in list"/></transition-group>`
+          ).code
+        ).toMatchInlineSnapshot(`
+          "const { ssrRenderList: _ssrRenderList } = require(\\"vue/server-renderer\\")
+
+          return function ssrRender(_ctx, _push, _parent, _attrs) {
+            _push(\`<ul>\`)
+            _ssrRenderList(_ctx.list, (i) => {
+              _push(\`<div></div>\`)
+            })
+            _push(\`</ul>\`)
+          }"
+        `)
+      })
+
+      test('with dynamic tag', () => {
+        expect(
+          compile(
+            `<transition-group :tag="someTag"><div v-for="i in list"/></transition-group>`
+          ).code
+        ).toMatchInlineSnapshot(`
+          "const { ssrRenderList: _ssrRenderList } = require(\\"vue/server-renderer\\")
+
+          return function ssrRender(_ctx, _push, _parent, _attrs) {
+            _push(\`<\${_ctx.someTag}>\`)
+            _ssrRenderList(_ctx.list, (i) => {
+              _push(\`<div></div>\`)
+            })
+            _push(\`</\${_ctx.someTag}>\`)
+          }"
+        `)
+      })
+
+      test('with multi fragments children', () => {
+        expect(
+          compile(
+            `<transition-group>
+              <div v-for="i in 10"/>
+              <div v-for="i in 10"/>
+              <template v-if="ok"><div>ok</div></template>
+            </transition-group>`
+          ).code
+        ).toMatchInlineSnapshot(`
+          "const { ssrRenderList: _ssrRenderList } = require(\\"vue/server-renderer\\")
+
+          return function ssrRender(_ctx, _push, _parent, _attrs) {
+            _push(\`<!--[-->\`)
+            _ssrRenderList(10, (i) => {
+              _push(\`<div></div>\`)
+            })
+            _ssrRenderList(10, (i) => {
+              _push(\`<div></div>\`)
+            })
+            if (_ctx.ok) {
+              _push(\`<div>ok</div>\`)
+            } else {
+              _push(\`<!---->\`)
+            }
+            _push(\`<!--]-->\`)
+          }"
+        `)
+      })
     })
   })
 })

@@ -15,10 +15,13 @@ const enum DevtoolsHooks {
   COMPONENT_UPDATED = 'component:updated',
   COMPONENT_ADDED = 'component:added',
   COMPONENT_REMOVED = 'component:removed',
-  COMPONENT_EMIT = 'component:emit'
+  COMPONENT_EMIT = 'component:emit',
+  PERFORMANCE_START = 'perf:start',
+  PERFORMANCE_END = 'perf:end'
 }
 
 interface DevtoolsHook {
+  enabled?: boolean
   emit: (event: string, ...payload: any[]) => void
   on: (event: string, handler: Function) => void
   once: (event: string, handler: Function) => void
@@ -28,14 +31,33 @@ interface DevtoolsHook {
 
 export let devtools: DevtoolsHook
 
-export function setDevtoolsHook(hook: DevtoolsHook) {
+let buffer: { event: string; args: any[] }[] = []
+
+function emit(event: string, ...args: any[]) {
+  if (devtools) {
+    devtools.emit(event, ...args)
+  } else {
+    buffer.push({ event, args })
+  }
+}
+
+export function setDevtoolsHook(hook: DevtoolsHook, target: any) {
   devtools = hook
+  if (devtools) {
+    devtools.enabled = true
+    buffer.forEach(({ event, args }) => devtools.emit(event, ...args))
+    buffer = []
+  } else {
+    const replay = (target.__VUE_DEVTOOLS_HOOK_REPLAY__ =
+      target.__VUE_DEVTOOLS_HOOK_REPLAY__ || [])
+    replay.push((newHook: DevtoolsHook) => {
+      setDevtoolsHook(newHook, target)
+    })
+  }
 }
 
 export function devtoolsInitApp(app: App, version: string) {
-  // TODO queue if devtools is undefined
-  if (!devtools) return
-  devtools.emit(DevtoolsHooks.APP_INIT, app, version, {
+  emit(DevtoolsHooks.APP_INIT, app, version, {
     Fragment,
     Text,
     Comment,
@@ -44,31 +66,42 @@ export function devtoolsInitApp(app: App, version: string) {
 }
 
 export function devtoolsUnmountApp(app: App) {
-  if (!devtools) return
-  devtools.emit(DevtoolsHooks.APP_UNMOUNT, app)
+  emit(DevtoolsHooks.APP_UNMOUNT, app)
 }
 
 export const devtoolsComponentAdded = /*#__PURE__*/ createDevtoolsComponentHook(
   DevtoolsHooks.COMPONENT_ADDED
 )
 
-export const devtoolsComponentUpdated = /*#__PURE__*/ createDevtoolsComponentHook(
-  DevtoolsHooks.COMPONENT_UPDATED
-)
+export const devtoolsComponentUpdated =
+  /*#__PURE__*/ createDevtoolsComponentHook(DevtoolsHooks.COMPONENT_UPDATED)
 
-export const devtoolsComponentRemoved = /*#__PURE__*/ createDevtoolsComponentHook(
-  DevtoolsHooks.COMPONENT_REMOVED
-)
+export const devtoolsComponentRemoved =
+  /*#__PURE__*/ createDevtoolsComponentHook(DevtoolsHooks.COMPONENT_REMOVED)
 
 function createDevtoolsComponentHook(hook: DevtoolsHooks) {
   return (component: ComponentInternalInstance) => {
-    if (!devtools) return
-    devtools.emit(
+    emit(
       hook,
       component.appContext.app,
       component.uid,
-      component.parent ? component.parent.uid : undefined
+      component.parent ? component.parent.uid : undefined,
+      component
     )
+  }
+}
+
+export const devtoolsPerfStart = /*#__PURE__*/ createDevtoolsPerformanceHook(
+  DevtoolsHooks.PERFORMANCE_START
+)
+
+export const devtoolsPerfEnd = /*#__PURE__*/ createDevtoolsPerformanceHook(
+  DevtoolsHooks.PERFORMANCE_END
+)
+
+function createDevtoolsPerformanceHook(hook: DevtoolsHooks) {
+  return (component: ComponentInternalInstance, type: string, time: number) => {
+    emit(hook, component.appContext.app, component.uid, component, type, time)
   }
 }
 
@@ -77,8 +110,7 @@ export function devtoolsComponentEmit(
   event: string,
   params: any[]
 ) {
-  if (!devtools) return
-  devtools.emit(
+  emit(
     DevtoolsHooks.COMPONENT_EMIT,
     component.appContext.app,
     component,

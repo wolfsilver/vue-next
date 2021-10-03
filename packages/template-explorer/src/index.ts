@@ -2,7 +2,7 @@ import * as m from 'monaco-editor'
 import { compile, CompilerError, CompilerOptions } from '@vue/compiler-dom'
 import { compile as ssrCompile } from '@vue/compiler-ssr'
 import { compilerOptions, initOptions, ssrMode } from './options'
-import { watchEffect } from '@vue/runtime-dom'
+import { toRaw, watchEffect } from '@vue/runtime-dom'
 import { SourceMapConsumer } from 'source-map'
 import theme from './theme'
 
@@ -53,7 +53,7 @@ window.init = () => {
       const compileFn = ssrMode.value ? ssrCompile : compile
       const start = performance.now()
       const { code, ast, map } = compileFn(source, {
-        filename: 'template.vue',
+        filename: 'ExampleTemplate.vue',
         ...compilerOptions,
         sourceMap: true,
         onError: err => {
@@ -67,13 +67,12 @@ window.init = () => {
         errors.filter(e => e.loc).map(formatError)
       )
       console.log(`AST: `, ast)
+      console.log(`Options: `, toRaw(compilerOptions))
       lastSuccessfulCode = code + `\n\n// Check the console for the AST`
       lastSuccessfulMap = new SourceMapConsumer(map!)
       lastSuccessfulMap!.computeColumnSpans()
-    } catch (e) {
-      lastSuccessfulCode = `/* ERROR: ${
-        e.message
-      } (see console for more info) */`
+    } catch (e: any) {
+      lastSuccessfulCode = `/* ERROR: ${e.message} (see console for more info) */`
       console.error(e)
     }
     return lastSuccessfulCode
@@ -149,7 +148,7 @@ window.init = () => {
       clearEditorDecos()
       if (lastSuccessfulMap) {
         const pos = lastSuccessfulMap.generatedPositionFor({
-          source: 'template.vue',
+          source: 'ExampleTemplate.vue',
           line: e.position.lineNumber,
           column: e.position.column - 1
         })
@@ -194,8 +193,10 @@ window.init = () => {
         if (
           pos.line != null &&
           pos.column != null &&
-          !// ignore mock location
-          (pos.line === 1 && pos.column === 0)
+          !(
+            // ignore mock location
+            (pos.line === 1 && pos.column === 0)
+          )
         ) {
           const translatedPos = {
             column: pos.column + 1,

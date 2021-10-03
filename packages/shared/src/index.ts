@@ -28,7 +28,7 @@ export const babelParserDefaultPlugins = [
 export const EMPTY_OBJ: { readonly [key: string]: any } = __DEV__
   ? Object.freeze({})
   : {}
-export const EMPTY_ARR: [] = []
+export const EMPTY_ARR = __DEV__ ? Object.freeze([]) : []
 
 export const NOOP = () => {}
 
@@ -80,6 +80,7 @@ export const toTypeString = (value: unknown): string =>
   objectToString.call(value)
 
 export const toRawType = (value: unknown): string => {
+  // extract "RawType" from strings like "[object RawType]"
   return toTypeString(value).slice(8, -1)
 }
 
@@ -93,7 +94,8 @@ export const isIntegerKey = (key: unknown) =>
   '' + parseInt(key, 10) === key
 
 export const isReservedProp = /*#__PURE__*/ makeMap(
-  'key,ref,' +
+  // the leading comma is intentional so empty string "" is also included
+  ',key,ref,' +
     'onVnodeBeforeMount,onVnodeMounted,' +
     'onVnodeBeforeUpdate,onVnodeUpdated,' +
     'onVnodeBeforeUnmount,onVnodeUnmounted'
@@ -111,34 +113,35 @@ const camelizeRE = /-(\w)/g
 /**
  * @private
  */
-export const camelize = cacheStringFunction(
-  (str: string): string => {
-    return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
-  }
-)
+export const camelize = cacheStringFunction((str: string): string => {
+  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
+})
 
 const hyphenateRE = /\B([A-Z])/g
 /**
  * @private
  */
-export const hyphenate = cacheStringFunction(
-  (str: string): string => {
-    return str.replace(hyphenateRE, '-$1').toLowerCase()
-  }
+export const hyphenate = cacheStringFunction((str: string) =>
+  str.replace(hyphenateRE, '-$1').toLowerCase()
 )
 
 /**
  * @private
  */
 export const capitalize = cacheStringFunction(
-  (str: string): string => {
-    return str.charAt(0).toUpperCase() + str.slice(1)
-  }
+  (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+)
+
+/**
+ * @private
+ */
+export const toHandlerKey = cacheStringFunction((str: string) =>
+  str ? `on${capitalize(str)}` : ``
 )
 
 // compare whether a value has changed, accounting for NaN.
 export const hasChanged = (value: any, oldValue: any): boolean =>
-  value !== oldValue && (value === value || oldValue === oldValue)
+  !Object.is(value, oldValue)
 
 export const invokeArrayFns = (fns: Function[], arg?: any) => {
   for (let i = 0; i < fns.length; i++) {
@@ -167,11 +170,11 @@ export const getGlobalThis = (): any => {
       typeof globalThis !== 'undefined'
         ? globalThis
         : typeof self !== 'undefined'
-          ? self
-          : typeof window !== 'undefined'
-            ? window
-            : typeof global !== 'undefined'
-              ? global
-              : {})
+        ? self
+        : typeof window !== 'undefined'
+        ? window
+        : typeof global !== 'undefined'
+        ? global
+        : {})
   )
 }

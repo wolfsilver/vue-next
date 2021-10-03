@@ -1,36 +1,32 @@
 import {
+  ref,
   render,
   useCssVars,
+  createStaticVNode,
   h,
   reactive,
   nextTick,
   ComponentOptions,
-  Suspense
+  Suspense,
+  FunctionalComponent
 } from '@vue/runtime-dom'
 
 describe('useCssVars', () => {
-  async function assertCssVars(
-    getApp: (state: any) => ComponentOptions,
-    scopeId?: string
-  ) {
+  async function assertCssVars(getApp: (state: any) => ComponentOptions) {
     const state = reactive({ color: 'red' })
     const App = getApp(state)
     const root = document.createElement('div')
-    const prefix = scopeId ? `${scopeId.replace(/^data-v-/, '')}-` : ``
 
     render(h(App), root)
+    await nextTick()
     for (const c of [].slice.call(root.children as any)) {
-      expect(
-        (c as HTMLElement).style.getPropertyValue(`--${prefix}color`)
-      ).toBe(`red`)
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe(`red`)
     }
 
     state.color = 'green'
     await nextTick()
     for (const c of [].slice.call(root.children as any)) {
-      expect(
-        (c as HTMLElement).style.getPropertyValue(`--${prefix}color`)
-      ).toBe('green')
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe('green')
     }
   }
 
@@ -73,9 +69,17 @@ describe('useCssVars', () => {
     const state = reactive({ color: 'red' })
     const root = document.createElement('div')
 
+    let resolveAsync: any
+    let asyncPromise: any
+
     const AsyncComp = {
-      async setup() {
-        return () => h('p', 'default')
+      setup() {
+        asyncPromise = new Promise(r => {
+          resolveAsync = () => {
+            r(() => h('p', 'default'))
+          }
+        })
+        return asyncPromise
       }
     }
 
@@ -91,12 +95,14 @@ describe('useCssVars', () => {
     }
 
     render(h(App), root)
+    await nextTick()
     // css vars use with fallback tree
     for (const c of [].slice.call(root.children as any)) {
       expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe(`red`)
     }
     // AsyncComp resolve
-    await nextTick()
+    resolveAsync()
+    await asyncPromise.then(() => {})
     // Suspense effects flush
     await nextTick()
     // css vars use with default tree
@@ -111,18 +117,83 @@ describe('useCssVars', () => {
     }
   })
 
-  test('with <style scoped>', async () => {
-    const id = 'data-v-12345'
+  test('with subTree changed', async () => {
+    const state = reactive({ color: 'red' })
+    const value = ref(true)
+    const root = document.createElement('div')
 
-    await assertCssVars(
-      state => ({
-        __scopeId: id,
-        setup() {
-          useCssVars(() => state, true)
-          return () => h('div')
-        }
-      }),
-      id
-    )
+    const App = {
+      setup() {
+        useCssVars(() => state)
+        return () => (value.value ? [h('div')] : [h('div'), h('div')])
+      }
+    }
+
+    render(h(App), root)
+    await nextTick()
+    // css vars use with fallback tree
+    for (const c of [].slice.call(root.children as any)) {
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe(`red`)
+    }
+
+    value.value = false
+    await nextTick()
+    for (const c of [].slice.call(root.children as any)) {
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe('red')
+    }
+  })
+
+  // #3894
+  test('with subTree change inside HOC', async () => {
+    const state = reactive({ color: 'red' })
+    const value = ref(true)
+    const root = document.createElement('div')
+
+    const Child: FunctionalComponent = (_, { slots }) => slots.default!()
+
+    const App = {
+      setup() {
+        useCssVars(() => state)
+        return () =>
+          h(Child, null, () =>
+            value.value ? [h('div')] : [h('div'), h('div')]
+          )
+      }
+    }
+
+    render(h(App), root)
+    await nextTick()
+    // css vars use with fallback tree
+    for (const c of [].slice.call(root.children as any)) {
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe(`red`)
+    }
+
+    value.value = false
+    await nextTick()
+    for (const c of [].slice.call(root.children as any)) {
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe('red')
+    }
+  })
+
+  test('with createStaticVNode', async () => {
+    const state = reactive({ color: 'red' })
+    const root = document.createElement('div')
+
+    const App = {
+      setup() {
+        useCssVars(() => state)
+        return () => [
+          h('div'),
+          createStaticVNode('<div>1</div><div><span>2</span></div>', 2),
+          h('div')
+        ]
+      }
+    }
+
+    render(h(App), root)
+    await nextTick()
+    for (const c of [].slice.call(root.children as any)) {
+      expect((c as HTMLElement).style.getPropertyValue(`--color`)).toBe('red')
+    }
   })
 })
